@@ -1,0 +1,28 @@
+{
+  "agents": {
+    "po_approval_manager": {
+      "agent_id": "699f2236d19ec1f1c4d3e715",
+      "name": "PO Approval Manager",
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "agent_type": "json",
+      "capabilities": {
+        "image_output": false,
+        "voice": false,
+        "file_output": false,
+        "knowledge_base": false
+      }
+    }
+  },
+  "schedules": {
+    "weekday_reminder": {
+      "schedule_id": "699f223e399dfadeac398cdf",
+      "agent_id": "699f2236d19ec1f1c4d3e715",
+      "cron_expression": "0 9 * * 1-5",
+      "timezone": "America/New_York",
+      "is_active": false,
+      "message": "Review all pending purchase orders and send reminder notifications to approvers who have POs pending for more than 24 hours. List all pending POs with their current approval status, pending approver details, and days waiting."
+    }
+  },
+  "workflow_created": true
+}

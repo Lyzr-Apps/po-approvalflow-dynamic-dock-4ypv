@@ -1,0 +1,132 @@
+{
+  "agent_name": "PO Approval Manager",
+  "agent_id": "699f2236d19ec1f1c4d3e715",
+  "description": "Purchase Order Approval Workflow Processor that manages multi-level approval chains based on PO attributes including amount, department, and vendor status. Routes POs through configurable workflows, sends reminders, and handles escalations.",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "action_type": "string",
+    "po_details": {
+      "po_number": "string",
+      "requester": "string",
+      "department": "string",
+      "amount": "number",
+      "vendor": "string",
+      "vendor_status": "string",
+      "description": "string",
+      "priority": "string",
+      "category": "string",
+      "submission_date": "string",
+      "estimated_completion": "string"
+    },
+    "approval_chain": [
+      {
+        "step": "number",
+        "approver_name": "string",
+        "approver_role": "string",
+        "status": "string",
+        "notes": "string"
+      }
+    ],
+    "current_status": "string",
+    "approval_progress": "number",
+    "alerts": [
+      {
+        "type": "string",
+        "message": "string"
+      }
+    ],
+    "reminder_details": {
+      "pending_approvers": [
+        {
+          "name": "string",
+          "role": "string",
+          "email": "string",
+          "days_pending": "number",
+          "reminder_sent": "boolean"
+        }
+      ],
+      "reminder_message": "string"
+    },
+    "dashboard_summary": {
+      "total_pos": "number",
+      "pending_approval": "number",
+      "approved": "number",
+      "rejected": "number",
+      "total_amount": "number",
+      "average_approval_time": "string",
+      "urgent_pos": "number",
+      "department_breakdown": [
+        {
+          "department": "string",
+          "count": "number",
+          "total_amount": "number"
+        }
+      ]
+    },
+    "message": "string"
+  },
+  "example_response": {
+    "action_type": "Type of action: submit_po, check_status, send_reminder, dashboard, escalate",
+    "po_details": {
+      "po_number": "Auto-generated PO number",
+      "requester": "Name of the person requesting",
+      "department": "Department name",
+      "amount": 0,
+      "vendor": "Vendor name",
+      "vendor_status": "new or preferred",
+      "description": "PO description",
+      "priority": "low, medium, high, urgent",
+      "category": "Category: hardware, software, services, supplies, marketing, other",
+      "submission_date": "Date submitted",
+      "estimated_completion": "Estimated approval completion date"
+    },
+    "approval_chain": [
+      {
+        "step": 0,
+        "approver_name": "Approver's name",
+        "approver_role": "Approver's role/title",
+        "status": "pending, approved, rejected, skipped",
+        "notes": "Any notes from approver"
+      }
+    ],
+    "current_status": "Overall PO status: draft, pending_approval, approved, rejected, escalated, on_hold",
+    "approval_progress": 0,
+    "alerts": [
+      {
+        "type": "info, warning, error, reminder",
+        "message": "Alert message"
+      }
+    ],
+    "reminder_details": {
+      "pending_approvers": [
+        {
+          "name": "sample string",
+          "role": "sample string",
+          "email": "sample string",
+          "days_pending": 0,
+          "reminder_sent": false
+        }
+      ],
+      "reminder_message": "Generated reminder text"
+    },
+    "dashboard_summary": {
+      "total_pos": 0,
+      "pending_approval": 0,
+      "approved": 0,
+      "rejected": 0,
+      "total_amount": 0,
+      "average_approval_time": "sample string",
+      "urgent_pos": 0,
+      "department_breakdown": [
+        {
+          "department": "sample string",
+          "count": 0,
+          "total_amount": 0
+        }
+      ]
+    },
+    "message": "Human-readable summary message"
+  }
+}

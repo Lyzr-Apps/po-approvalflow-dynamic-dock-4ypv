@@ -1,0 +1,72 @@
+{
+  "workflow": {
+    "name": "PO Approval Workflow Manager",
+    "description": "Multi-level purchase order approval application where approval chains dynamically adjust based on PO attributes (amount, department, vendor status). Routes POs through configurable approval workflows, sends notifications/reminders to pending approvers, and supports escalation.",
+    "nodes": [
+      {
+        "id": "input_node",
+        "type": "Input",
+        "label": "PO Submission / Query",
+        "nodeCategory": "input"
+      },
+      {
+        "id": "po_agent",
+        "type": "Agent",
+        "label": "PO Approval Manager",
+        "nodeCategory": "agent",
+        "agent_id": "699f2236d19ec1f1c4d3e715"
+      },
+      {
+        "id": "scheduler_node",
+        "type": "Scheduler",
+        "label": "Scheduled: Weekdays at 9:00 AM ET",
+        "nodeCategory": "input",
+        "schedule_id": "699f223e399dfadeac398cdf",
+        "cron_expression": "0 9 * * 1-5",
+        "timezone": "America/New_York"
+      },
+      {
+        "id": "output_node",
+        "type": "Output",
+        "label": "Approval Status & Chain Details",
+        "nodeCategory": "end"
+      }
+    ],
+    "edges": [
+      { "source": "input_node", "target": "po_agent" },
+      { "source": "scheduler_node", "target": "po_agent" },
+      { "source": "po_agent", "target": "output_node" }
+    ]
+  },
+  "agents": [
+    {
+      "agent_id": "699f2236d19ec1f1c4d3e715",
+      "name": "PO Approval Manager",
+      "role": "Purchase Order Approval Workflow Processor",
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "temperature": 0.3,
+      "top_p": 0.9,
+      "capabilities": {
+        "image_output": false,
+        "voice": false,
+        "file_output": false,
+        "knowledge_base": false,
+        "tools": [],
+        "scheduled": true
+      }
+    }
+  ],
+  "schedules": [
+    {
+      "schedule_id": "699f223e399dfadeac398cdf",
+      "agent_id": "699f2236d19ec1f1c4d3e715",
+      "cron_expression": "0 9 * * 1-5",
+      "timezone": "America/New_York",
+      "message": "Review all pending purchase orders and send reminder notifications to approvers who have POs pending for more than 24 hours. List all pending POs with their current approval status, pending approver details, and days waiting.",
+      "is_active": false,
+      "max_retries": 2,
+      "retry_delay": 300
+    }
+  ]
+}
