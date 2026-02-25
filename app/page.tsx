@@ -21,7 +21,8 @@ import {
   Loader2, Send, Search, ClipboardList, BarChart3, Bell, Calendar, Clock,
   CheckCircle2, XCircle, AlertTriangle, Info, DollarSign,
   Users, FileText, TrendingUp, RefreshCw, Play, Pause, ChevronRight,
-  Building2, Package, Zap, Shield, Mail, User
+  Building2, Package, Zap, Shield, Mail, User, GitBranch, ArrowDown,
+  Settings, ChevronDown, ChevronUp
 } from 'lucide-react'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -187,6 +188,125 @@ function getPriorityColor(priority?: string): string {
 function formatCurrency(amount?: number): string {
   if (amount == null) return '$0.00'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+}
+
+// ── Approval Rules Configuration ──────────────────────────────────────────────
+
+const HOD_MAP: Record<string, { name: string; role: string }> = {
+  'IT': { name: 'Michael Torres', role: 'IT Manager (HOD)' },
+  'Marketing': { name: 'Lisa Park', role: 'Marketing Manager (HOD)' },
+  'Finance': { name: 'Robert Chen', role: 'Finance Manager (HOD)' },
+  'R&D': { name: 'Dr. James Liu', role: 'R&D Director (HOD)' },
+  'Operations': { name: 'Karen Williams', role: 'Operations Manager (HOD)' },
+  'HR': { name: 'Maria Santos', role: 'HR Director (HOD)' },
+  'Legal': { name: 'Thomas Baker', role: 'General Counsel (HOD)' },
+  'Sales': { name: 'Amanda Foster', role: 'Sales Director (HOD)' },
+}
+
+const EXECUTIVE_APPROVERS = {
+  finance_manager: { name: 'Jennifer Walsh', role: 'Finance Manager' },
+  vp_operations: { name: 'David Kim', role: 'VP of Operations' },
+  cfo: { name: 'Richard Patel', role: 'CFO' },
+  cmo: { name: 'Sarah Mitchell', role: 'CMO' },
+  cto: { name: 'Dr. James Liu', role: 'CTO' },
+  procurement: { name: 'Diana Cruz', role: 'Procurement Manager' },
+  it_director: { name: 'Michael Torres', role: 'IT Director' },
+  hr_director: { name: 'Maria Santos', role: 'HR Director' },
+}
+
+const AMOUNT_RULES = [
+  { range: 'Under $1,000', levels: 1, chain: 'HOD only' },
+  { range: '$1,000 - $10,000', levels: 2, chain: 'HOD → Finance Manager' },
+  { range: '$10,000 - $50,000', levels: 3, chain: 'HOD → Finance Manager → VP' },
+  { range: 'Over $50,000', levels: 4, chain: 'HOD → Finance Manager → VP → CFO' },
+]
+
+const DEPT_RULES = [
+  { department: 'IT', condition: 'Hardware/Software > $5,000', extra: 'IT Director' },
+  { department: 'Marketing', condition: 'Campaign > $25,000', extra: 'CMO' },
+  { department: 'R&D', condition: 'Any amount > $15,000', extra: 'CTO' },
+  { department: 'HR', condition: 'Any amount > $10,000', extra: 'HR Director' },
+  { department: 'Legal', condition: 'Any amount > $20,000', extra: 'General Counsel' },
+]
+
+const VENDOR_RULES = [
+  { status: 'New Vendor', rule: 'Adds Procurement Manager review after HOD' },
+  { status: 'Preferred Vendor', rule: 'Skip one approval level for orders under $5,000' },
+]
+
+const PRIORITY_SLAS = [
+  { priority: 'Urgent', sla: '24 hours per approver', color: 'text-red-400' },
+  { priority: 'High', sla: '48 hours per approver', color: 'text-orange-400' },
+  { priority: 'Medium', sla: '3 business days per approver', color: 'text-amber-400' },
+  { priority: 'Low', sla: '5 business days per approver', color: 'text-emerald-400' },
+]
+
+function computeRoutingPreview(department: string, amount: string, vendorStatus: string, category: string): { approvers: { name: string; role: string; reason: string }[]; notes: string[] } {
+  const approvers: { name: string; role: string; reason: string }[] = []
+  const notes: string[] = []
+  const amt = parseFloat(amount) || 0
+
+  if (!department) return { approvers: [], notes: ['Select a department to see the approval chain'] }
+
+  // Step 1: HOD
+  const hod = HOD_MAP[department]
+  if (hod) {
+    approvers.push({ name: hod.name, role: hod.role, reason: 'First approver (Head of Department)' })
+  }
+
+  // Vendor: New vendor adds Procurement after HOD
+  if (vendorStatus === 'new') {
+    approvers.push({ name: EXECUTIVE_APPROVERS.procurement.name, role: EXECUTIVE_APPROVERS.procurement.role, reason: 'New vendor requires procurement review' })
+    notes.push('New vendor: Procurement Manager review added after HOD')
+  }
+
+  // Department-specific rules
+  if (department === 'IT' && (category === 'hardware' || category === 'software') && amt > 5000) {
+    if (!approvers.find(a => a.role.includes('IT Director'))) {
+      approvers.push({ name: EXECUTIVE_APPROVERS.it_director.name, role: 'IT Director', reason: 'IT hardware/software exceeding $5,000' })
+    }
+    notes.push('IT Dept: IT Director approval added for hardware/software > $5,000')
+  }
+  if (department === 'Marketing' && amt > 25000) {
+    approvers.push({ name: EXECUTIVE_APPROVERS.cmo.name, role: EXECUTIVE_APPROVERS.cmo.role, reason: 'Marketing spend exceeding $25,000' })
+    notes.push('Marketing Dept: CMO approval added for amount > $25,000')
+  }
+  if (department === 'R&D' && amt > 15000) {
+    approvers.push({ name: EXECUTIVE_APPROVERS.cto.name, role: EXECUTIVE_APPROVERS.cto.role, reason: 'R&D spend exceeding $15,000' })
+    notes.push('R&D Dept: CTO approval added for amount > $15,000')
+  }
+  if (department === 'HR' && amt > 10000) {
+    if (!approvers.find(a => a.role.includes('HR Director'))) {
+      approvers.push({ name: EXECUTIVE_APPROVERS.hr_director.name, role: 'HR Director', reason: 'HR spend exceeding $10,000' })
+    }
+    notes.push('HR Dept: HR Director approval added for amount > $10,000')
+  }
+
+  // Amount-based additional approvers
+  if (amt >= 1000) {
+    // Preferred vendor skip for < $5000
+    if (vendorStatus === 'preferred' && amt < 5000) {
+      notes.push('Preferred vendor: One approval level skipped for amount under $5,000')
+    } else {
+      approvers.push({ name: EXECUTIVE_APPROVERS.finance_manager.name, role: EXECUTIVE_APPROVERS.finance_manager.role, reason: amt >= 1000 ? 'Amount >= $1,000 requires finance review' : '' })
+    }
+  }
+  if (amt >= 10000) {
+    approvers.push({ name: EXECUTIVE_APPROVERS.vp_operations.name, role: EXECUTIVE_APPROVERS.vp_operations.role, reason: 'Amount >= $10,000 requires VP approval' })
+  }
+  if (amt >= 50000) {
+    approvers.push({ name: EXECUTIVE_APPROVERS.cfo.name, role: EXECUTIVE_APPROVERS.cfo.role, reason: 'Amount >= $50,000 requires CFO approval' })
+  }
+
+  // Deduplicate by role
+  const seen = new Set<string>()
+  const unique = approvers.filter(a => {
+    if (seen.has(a.role)) return false
+    seen.add(a.role)
+    return true
+  })
+
+  return { approvers: unique, notes }
 }
 
 // ── Sample Data ────────────────────────────────────────────────────────────────
@@ -794,6 +914,9 @@ Category: ${submitForm.category}`
               <TabsTrigger value="schedule" className="gap-1.5 text-xs sm:text-sm">
                 <Calendar className="h-3.5 w-3.5" /> Schedule
               </TabsTrigger>
+              <TabsTrigger value="rules" className="gap-1.5 text-xs sm:text-sm">
+                <GitBranch className="h-3.5 w-3.5" /> Approval Rules
+              </TabsTrigger>
             </TabsList>
 
             {/* ── Submit PO Tab ──────────────────────────────────────────── */}
@@ -872,6 +995,64 @@ Category: ${submitForm.category}`
                       <Textarea id="description" placeholder="Describe the purchase order..." rows={3} value={submitForm.description} onChange={(e) => setSubmitForm(prev => ({ ...prev, description: e.target.value }))} />
                     </div>
                   </div>
+                  {/* Routing Preview */}
+                  {submitForm.department && (
+                    <div className="md:col-span-2 mt-2">
+                      <Separator className="bg-border mb-4" />
+                      <div className="flex items-center gap-2 mb-3">
+                        <GitBranch className="h-4 w-4 text-indigo-400" />
+                        <span className="text-sm font-semibold">Approval Routing Preview</span>
+                        <Badge variant="outline" className="bg-indigo-500/15 text-indigo-400 border-indigo-500/30 text-xs ml-auto">
+                          Live Preview
+                        </Badge>
+                      </div>
+                      {(() => {
+                        const preview = computeRoutingPreview(submitForm.department, submitForm.amount, submitForm.vendorStatus, submitForm.category)
+                        return (
+                          <div className="space-y-3">
+                            {/* Visual chain */}
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {preview.approvers.map((approver, idx) => (
+                                <React.Fragment key={idx}>
+                                  {idx > 0 && <ArrowDown className="h-4 w-4 text-muted-foreground mx-1 rotate-[-90deg]" />}
+                                  <div className="flex items-center gap-2 bg-secondary/60 border border-border rounded-lg px-3 py-2">
+                                    <div className="h-6 w-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
+                                      {idx + 1}
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium">{approver.name}</p>
+                                      <p className="text-[10px] text-muted-foreground">{approver.role}</p>
+                                    </div>
+                                  </div>
+                                </React.Fragment>
+                              ))}
+                            </div>
+                            {/* Notes */}
+                            {preview.notes.length > 0 && (
+                              <div className="space-y-1">
+                                {preview.notes.map((note, idx) => (
+                                  <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground">
+                                    <Info className="h-3 w-3 mt-0.5 text-blue-400 flex-shrink-0" />
+                                    <span>{note}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              Total approvals required: <strong className="text-foreground">{preview.approvers.length}</strong>
+                              {submitForm.priority && (
+                                <span className="ml-2">
+                                  | SLA: <strong className={PRIORITY_SLAS.find(p => p.priority.toLowerCase() === submitForm.priority)?.color ?? 'text-foreground'}>
+                                    {PRIORITY_SLAS.find(p => p.priority.toLowerCase() === submitForm.priority)?.sla ?? 'N/A'}
+                                  </strong>
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter>
                   <Button onClick={handleSubmitPO} disabled={submitLoading || !submitForm.requester || !submitForm.department || !submitForm.amount} className="gap-2">
@@ -1270,6 +1451,206 @@ Category: ${submitForm.category}`
                       </Table>
                     </ScrollArea>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── Approval Rules Tab ────────────────────────────────────────── */}
+            <TabsContent value="rules" className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold">Approval Workflow Rules</h2>
+                <p className="text-xs text-muted-foreground">These rules determine who approves each Purchase Order. The workflow always starts with the Head of Department (HOD).</p>
+              </div>
+
+              {/* Workflow Flow Diagram */}
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <GitBranch className="h-4 w-4 text-indigo-400" />
+                    Approval Flow
+                  </CardTitle>
+                  <CardDescription>Every PO follows this path. Additional approvers are added based on amount, department, and vendor status.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-center gap-2 flex-wrap py-4">
+                    {['Requester Submits PO', 'HOD (Dept. Head)', 'Dept-Specific Rules', 'Finance Manager', 'VP of Operations', 'CFO'].map((step, idx) => (
+                      <React.Fragment key={idx}>
+                        {idx > 0 && <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium ${
+                          idx === 0 ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' :
+                          idx === 1 ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' :
+                          idx === 2 ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' :
+                          'bg-secondary border-border text-foreground'
+                        }`}>
+                          {step}
+                          {idx >= 3 && <span className="text-[10px] text-muted-foreground ml-1">(if amount qualifies)</span>}
+                        </div>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* HOD Mapping */}
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4 text-emerald-400" />
+                    Department Heads (HOD) - First Approver
+                  </CardTitle>
+                  <CardDescription>Every PO first goes to the HOD of the requesting department. This step is mandatory for all POs.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {Object.entries(HOD_MAP).map(([dept, info]) => (
+                      <div key={dept} className="flex items-center gap-3 bg-secondary/40 border border-border rounded-lg p-3">
+                        <div className="h-8 w-8 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                          <User className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold">{info.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{dept} - {info.role}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Amount-Based Rules */}
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-amber-400" />
+                    Amount-Based Approval Levels
+                  </CardTitle>
+                  <CardDescription>Additional approvers are added based on the PO amount after the HOD approves.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">Amount Range</TableHead>
+                        <TableHead className="text-muted-foreground text-center">Levels</TableHead>
+                        <TableHead className="text-muted-foreground">Approval Chain</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {AMOUNT_RULES.map((rule, idx) => (
+                        <TableRow key={idx} className="border-border">
+                          <TableCell className="font-medium text-sm">{rule.range}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-blue-500/15 text-blue-400 border-blue-500/30 text-xs">
+                              {rule.levels}-level
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{rule.chain}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Department-Specific Rules */}
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-purple-400" />
+                    Department-Specific Additional Approvers
+                  </CardTitle>
+                  <CardDescription>Some departments require additional approvers based on the type and amount of the PO.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">Department</TableHead>
+                        <TableHead className="text-muted-foreground">Condition</TableHead>
+                        <TableHead className="text-muted-foreground">Additional Approver</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {DEPT_RULES.map((rule, idx) => (
+                        <TableRow key={idx} className="border-border">
+                          <TableCell>
+                            <Badge variant="outline" className="bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">
+                              {rule.department}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{rule.condition}</TableCell>
+                          <TableCell className="text-sm font-medium">{rule.extra}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Vendor Status Rules & Priority SLAs side by side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="border-border bg-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Package className="h-4 w-4 text-cyan-400" />
+                      Vendor Status Rules
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {VENDOR_RULES.map((rule, idx) => (
+                      <div key={idx} className="bg-secondary/40 border border-border rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className={`text-xs ${idx === 0 ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'}`}>
+                            {rule.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{rule.rule}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border bg-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-orange-400" />
+                      Priority-Based SLAs
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {PRIORITY_SLAS.map((sla, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-secondary/40 border border-border rounded-lg p-3">
+                        <PriorityBadge priority={sla.priority.toLowerCase()} />
+                        <span className={`text-xs font-medium ${sla.color}`}>{sla.sla}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Executive Approvers Directory */}
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-blue-400" />
+                    Executive Approvers Directory
+                  </CardTitle>
+                  <CardDescription>These executives are assigned as approvers based on the rules above.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {Object.values(EXECUTIVE_APPROVERS).map((exec, idx) => (
+                      <div key={idx} className="flex items-center gap-3 bg-secondary/40 border border-border rounded-lg p-3">
+                        <div className="h-8 w-8 rounded-full bg-blue-500/15 flex items-center justify-center">
+                          <User className="h-4 w-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold">{exec.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{exec.role}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
